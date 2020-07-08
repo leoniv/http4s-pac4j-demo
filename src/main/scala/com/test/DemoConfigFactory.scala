@@ -28,8 +28,6 @@ class DemoConfigFactory extends ConfigFactory {
     //config.addAuthorizer("admin", new RequireAnyRoleAuthorizer[_ <: CommonProfile]("ROLE_ADMIN"))
     //config.addAuthorizer("custom", new CustomAuthorizer)
     config.setHttpActionAdapter(DefaultHttpActionAdapter)  // <-- Render a nicer page
-    config.setSessionStore(new Http4sCacheSessionStore())
-    //config.setSessionStore(Http4sCookieSessionStore)
     config
   }
 

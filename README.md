@@ -8,7 +8,9 @@ This `http4s-pac4j-demo` project is an Http4s application to test the [http4s-pa
 
 Build the project and launch the Http4s app on [http://localhost:8080](http://localhost:8080):
 
-    cd http4s-pac4j-demo
-    sbt clean compile run
+    $cd http4s-pac4j-demo
+    $sbt
+    sbt:http4sPac4jDemo> reStart
+    sbt:http4sPac4jDemo> reStop
 
 To test, you can call a protected url by clicking on the "Protected url by **xxx**" link, which will start the authentication process with the **xxx** provider.
