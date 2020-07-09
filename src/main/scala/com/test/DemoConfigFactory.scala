@@ -15,6 +15,17 @@ import org.pac4j.oidc.config.OidcConfiguration
 import org.pac4j.oidc.profile.OidcProfile
 import org.pac4j.saml.client.SAML2Client
 import org.pac4j.saml.config.SAML2Configuration
+import org.pac4j.core.client.IndirectClient
+import org.pac4j.core.credentials.UsernamePasswordCredentials
+import org.pac4j.core.exception.HttpAction
+import org.pac4j.core.redirect.RedirectAction
+import org.pac4j.core.credentials.extractor.FormExtractor
+import org.pac4j.core.credentials.Credentials
+import org.pac4j.core.credentials.extractor.CredentialsExtractor
+import org.pac4j.core.credentials.authenticator.Authenticator
+import org.pac4j.core.exception.CredentialsException
+import org.pac4j.core.context.session.SessionStore
+import java.{util => ju}
 
 class DemoConfigFactory extends ConfigFactory {
   override def build(parameters: AnyRef*): Config = {
@@ -22,7 +33,9 @@ class DemoConfigFactory extends ConfigFactory {
       oidcClient(),
       saml2Client(),
       formClient(),
-      facebookClient())
+      facebookClient(),
+      LoginPageClient("http://localhost:8080/login", "/")
+      )
 
     val config = new Config(clients)
     //config.addAuthorizer("admin", new RequireAnyRoleAuthorizer[_ <: CommonProfile]("ROLE_ADMIN"))
@@ -69,4 +82,44 @@ class DemoConfigFactory extends ConfigFactory {
   def facebookClient() = {
     new FacebookClient("145278422258960", "be21409ba8f39b5dae2a7de525484da8")
   }
+
+  case class NeverCredentials() extends Credentials
+  case class NeverExtractor() extends CredentialsExtractor[NeverCredentials] {
+    def extract(x: WebContext): NeverCredentials = NeverCredentials()
+  }
+  case class NeverAuthenticator() extends Authenticator[NeverCredentials] {
+    def validate(x: NeverCredentials, ctx: WebContext): Unit = {
+      throw new CredentialsException("Never authenticate!")
+    }
+  }
+
+  case class LoginPageClient(loginUrl: String, defaultRequestedUrl: String) extends IndirectClient[NeverCredentials, CommonProfile] {
+    val requestedUrlKey = s"$getName:REQUESTED_URL"
+
+    protected def clientInit(): Unit = {
+        defaultAuthenticator(NeverAuthenticator())
+    }
+
+    override protected def retrieveCredentials(ctx: WebContext): NeverCredentials = {
+      val storedRequestedUrl = ctx
+        .getSessionStore()
+        .asInstanceOf[SessionStore[WebContext]]
+        .get(ctx, requestedUrlKey).asInstanceOf[String]
+
+      val requestedUrl = if (storedRequestedUrl == null) defaultRequestedUrl
+                         else storedRequestedUrl
+
+      val finalRequstedUrl = getUrlResolver().compute(requestedUrl, ctx);
+      throw HttpAction.redirect(ctx, finalRequstedUrl)
+    }
+
+    defaultRedirectActionBuilder(ctx => {
+      val finalLoginUrl = getUrlResolver().compute(loginUrl, ctx);
+      ctx.getSessionStore().asInstanceOf[SessionStore[WebContext]]
+        .set(ctx, requestedUrlKey, ctx.getFullRequestURL())
+      RedirectAction.redirect(finalLoginUrl);
+    });
+     defaultCredentialsExtractor(NeverExtractor())
+  }
+
 }
